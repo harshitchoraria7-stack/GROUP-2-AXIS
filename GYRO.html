@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Spinning Gyroscope</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom CSS for the gyroscope animation and text gradient */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #ffffff;
+            margin: 0;
+            overflow-x: hidden;
+            font-family: 'Inter', sans-serif;
+            color: #4a4a4a;
+        }
+
+        .header-container {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 50px;
+            box-sizing: border-box;
+            background-color: #fff;
+            color: #4a4a4a;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header-logo {
+            width: 100px;
+            height: 100px;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        .header-text {
+            text-align: center;
+            flex-grow: 1;
+        }
+
+        .header-text h1 {
+            font-size: 1.2em;
+            margin: 0;
+            font-weight: normal;
+        }
+
+        .header-text p {
+            font-size: 0.9em;
+            margin: 5px 0 0;
+            font-weight: bold;
+        }
+
+        .menu-icon {
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            z-index: 100;
+        }
+
+        .menu-icon svg {
+            transition: transform 0.3s ease;
+        }
+        
+        .side-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 300px;
+            background: linear-gradient(180deg, #166534 0%, #dcfce7 100%);
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            z-index: 50;
+            padding-top: 100px;
+        }
+        
+        .side-popup.active {
+            transform: translateX(0);
+        }
+
+        .side-popup .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 2em;
+            cursor: pointer;
+            color: #fff; /* White for contrast */
+        }
+        
+        .side-popup-links {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .side-popup-link {
+            font-size: 1.1em;
+            color: #fff; /* White text for contrast */
+            text-decoration: none;
+            padding: 15px 20px;
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .side-popup-link:hover {
+            background-color: #fff; /* White background on hover */
+            color: #166534; /* Dark green text on hover */
+        }
+        
+        .main-content {
+            flex-grow: 1;
+            padding: 20px 50px;
+            box-sizing: border-box;
+            text-align: center;
+            padding-bottom: 80px;
+            padding-top: 150px; /* Space for the header */
+        }
+        
+        .content-section {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .gyro-container {
+            width: 400px;
+            height: 400px;
+            margin: 0 auto 30px auto;
+        }
+        #gyroscope {
+            transform-style: preserve-3d;
+            perspective: 800px;
+        }
+        #outer-gimbal, #inner-gimbal, #rotor {
+            transform-box: fill-box;
+            transform-origin: center;
+        }
+
+        .event-details {
+            max-width: 800px;
+            margin: 20px auto;
+            display: flex;
+            flex-wrap: wrap;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+        .event-detail-item {
+            display: flex;
+            align-items: center;
+            background: #f0f0f0;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+        }
+        .event-detail-item:hover {
+            transform: translateY(-5px);
+        }
+        .event-detail-item svg {
+            width: 24px;
+            height: 24px;
+            margin-right: 15px;
+            fill: #2ecc71;
+        }
+        .event-detail-text {
+            text-align: left;
+        }
+        .event-detail-text h3 {
+            margin: 0;
+            font-size: 1.1em;
+            color: #27ae60;
+        }
+        .event-detail-text p {
+            margin: 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .event-name {
+            font-size: 3em;
+            font-weight: bold;
+            margin-top: 20px;
+            text-shadow: 0 0 10px rgba(194, 181, 155, 0.5), 0 0 20px rgba(140, 117, 96, 0.5);
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+        }
+        
+        .event-name .the-part {
+            background: linear-gradient(90deg, #5F4B3C, #C2B59B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.1em;
+            font-size: 1em; 
+            margin-right: 0.5em; 
+        }
+
+        .event-name .text-part {
+            background: linear-gradient(90deg, #5F4B3C, #C2B59B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.1em;
+        }
+        
+        .i-container {
+            position: relative;
+            display: inline-block; /* Essential to contain the absolute positioned dot */
+            height: 1.2em; /* Ensure enough space for the letter and the dot */
+            vertical-align: top;
+        }
+        
+        .i-stem {
+            display: block; /* Make the 'l' a block to control its position */
+            background: linear-gradient(90deg, #5F4B3C, #C2B59B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.1em;
+            font-size: 1em;
+            height: 1em;
+            line-height: 1; /* Match line-height to font-size for better vertical alignment */
+            padding-left: 0.1em;
+            padding-right: 0.1em;
+        }
+        
+        .diamond-dot {
+            position: absolute;
+            top: -0.2em; /* Adjust to move it perfectly above the 'l' */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0.3em; /* Adjust size of the diamond */
+            height: 0.3em;
+            fill: url(#bronzeGradient); /* Use the same gradient for consistency */
+        }
+        
+        .event-tagline {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #555;
+            margin-top: 10px;
+        }
+        .event-description {
+            max-width: 600px;
+            font-size: 1.1em;
+            line-height: 1.6;
+            color: #555;
+            margin-top: 20px;
+            text-align: justify;
+        }
+        .register-link {
+            margin-top: 20px;
+            text-decoration: none;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 5px;
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+            transition: all 0.3s ease;
+        }
+        .register-link:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(46, 204, 113, 0.6);
+        }
+
+        .footer-container {
+            width: 100%;
+            text-align: center;
+            font-size: 0.9em;
+            color: #888;
+            background-color: #f7f7f7;
+            border-top: 1px solid #e0e0e0;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            padding: 10px 50px;
+            box-sizing: border-box;
+        }
+        .footer-details {
+            margin-bottom: 5px;
+        }
+        .footer-links a {
+            color: #666;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Mobile-first approach for responsiveness */
+        @media (max-width: 768px) {
+            .header-container {
+                flex-direction: column;
+                padding: 10px;
+                position: static;
+                box-shadow: none;
+            }
+            .header-logo {
+                width: 60px;
+                height: 60px;
+            }
+            .header-text {
+                margin-top: 10px;
+            }
+            .header-text h1 {
+                font-size: 1em;
+            }
+            .header-text p {
+                font-size: 0.8em;
+            }
+            .main-container {
+                flex-direction: column;
+                padding-top: 20px;
+            }
+            .main-content {
+                padding: 20px;
+            }
+            .gyro-container {
+                width: 300px;
+                height: 300px;
+            }
+            .event-details {
+                flex-direction: column;
+            }
+            .event-detail-item {
+                width: 100%;
+            }
+            .footer-container {
+                position: static;
+                padding: 10px;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="header-container">
+        <div class="menu-icon" id="menu-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#2ecc71" width="100%" height="100%">
+                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+            </svg>
+        </div>
+        <!-- College logo on the left -->
+        <div class="header-logo" style="background-image: url('https://upload.wikimedia.org/wikipedia/en/thumb/b/b0/St._Xavier%27s_College%2C_Kolkata_logo.jpg/200px-St._Xavier%27s_College%2C_Kolkata_logo.jpg');"></div>
+        <div class="header-text">
+            <h1>St. Xavier's College (Autonomous), Kolkata</h1>
+            <p>XAVIER'S CONSULTING CLUB</p>
+            <!-- Changed "presents" to use the same styling as the club name -->
+            <p>PRESENTS</p>
+        </div>
+        <!-- Club logo on the right -->
+        <div class="header-logo" style="background-image: url('https://xaviersconsultingclub.in/wp-content/uploads/2023/06/XCC-LOGOOO.png');"></div>
+    </div>
+    
+    <div class="side-popup" id="side-popup">
+        <span class="close-btn" id="close-btn">&times;</span>
+        <div class="side-popup-links">
+            <a href="#home" class="side-popup-link" data-content="home">Home</a>
+            <a href="#speakers" class="side-popup-link" data-content="speakers">Speakers</a>
+            <a href="#faqs" class="side-popup-link" data-content="faqs">FAQs</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <!-- Home Section -->
+        <section id="home" class="content-section active">
+            <div class="event-name">
+                <span class="the-part">THE</span>
+                <span class="text-part">A</span>
+                <span class="text-part">X</span>
+                <span class="text-part i-container">
+                    <span class="i-stem">l</span>
+                    <svg class="diamond-dot" viewBox="0 0 24 24" fill="currentColor">
+                        <!-- Path for a diamond shape to act as the dot -->
+                        <path d="M12 2 L22 12 L12 22 L2 12 Z" />
+                    </svg>
+                </span>
+                <span class="text-part">S</span>
+            </div>
+            
+            <p class="event-description">
+                Axis is the pinnacle of strategic thinking and problem-solving, brought to you by the Xavier's Consulting Club. 
+                This case study competition challenges participants to tackle real-world business scenarios, offering a unique opportunity to apply their analytical skills and creativity. 
+                Join us to learn from industry experts, network with top-tier talent, and compete for a chance to win.
+            </p>
+
+            <div class="gyro-container">
+                <svg id="gyroscope" width="100%" height="100%" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <!-- Create gradients for a faded, metallic effect -->
+                        <linearGradient id="bronzeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#5F4B3C;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#C2B59B;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="midBronzeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#8B7560;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#C2B59B;stop-opacity:1" />
+                        </linearGradient>
+                        
+                        <path id="arrowShape" d="M 0 0 L 15 7.5 L 0 15 z" fill="url(#bronzeGradient)" />
+                    </defs>
+                    <g transform="translate(200, 200)">
+                        <!-- Ring 1 -->
+                        <g id="ring1" class="ring">
+                            <path d="M -150 0 A 150 50 0 1 0 150 0" fill="none" stroke="url(#bronzeGradient)" stroke-width="8" stroke-opacity="0.9"/>
+                            <path d="M 150 0 A 150 50 0 1 0 -150 0" fill="none" stroke="url(#bronzeGradient)" stroke-width="8" stroke-opacity="0.9"/>
+                            <use href="#arrowShape" id="arrow1" transform="translate(145, -7.5) rotate(0)" />
+                        </g>
+    
+                        <!-- Ring 2 -->
+                        <g id="ring2" class="ring">
+                            <path d="M 0 -100 A 50 100 0 1 0 0 100" fill="none" stroke="url(#bronzeGradient)" stroke-width="8" stroke-opacity="0.9"/>
+                            <path d="M 0 100 A 50 100 0 1 0 0 -100" fill="none" stroke="url(#bronzeGradient)" stroke-width="8" stroke-opacity="0.9"/>
+                            <use href="#arrowShape" id="arrow2" transform="translate(-7.5, 95) rotate(90)" />
+                        </g>
+    
+                        <!-- Ring 3 -->
+                        <g id="ring3" class="ring">
+                            <path d="M 0 -100 A 50 100 0 1 0 0 100" fill="none" stroke="url(#bronzeGradient)" stroke-width="8" stroke-opacity="0.9" transform="rotate(60)"/>
+                            <path d="M 0 100 A 50 100 0 1 0 0 -100" fill="none" stroke="url(#bronzeGradient)" stroke-width="8" stroke-opacity="0.9" transform="rotate(60)"/>
+                            <use href="#arrowShape" id="arrow3" transform="translate(-7.5, 95) rotate(150)"/>
+                        </g>
+    
+                        <!-- Ring 4 -->
+                        <g id="ring4" class="ring">
+                            <path d="M -130 0 A 130 80 0 1 0 130 0" fill="none" stroke="url(#midBronzeGradient)" stroke-width="8" stroke-opacity="0.9"/>
+                            <path d="M 130 0 A 130 80 0 1 0 -130 0" fill="none" stroke="url(#midBronzeGradient)" stroke-width="8" stroke-opacity="0.9"/>
+                            <use href="#arrowShape" id="arrow4" transform="translate(125, -7.5) rotate(0)"/>
+                        </g>
+    
+                        <!-- Ring 5 -->
+                        <g id="ring5" class="ring">
+                            <path d="M 0 -130 A 80 130 0 1 0 0 130" fill="none" stroke="url(#midBronzeGradient)" stroke-width="8" stroke-opacity="0.9" transform="rotate(90)"/>
+                            <path d="M 0 130 A 80 130 0 1 0 0 -130" fill="none" stroke="url(#midBronzeGradient)" stroke-width="8" stroke-opacity="0.9" transform="rotate(90)"/>
+                            <use href="#arrowShape" id="arrow5" transform="translate(-7.5, 125) rotate(90)"/>
+                        </g>
+    
+                        <!-- Core circle -->
+                        <circle cx="0" cy="0" r="25" fill="#C2B59B" stroke="#8B7560" stroke-width="2" />
+                    </g>
+                </svg>
+            </div>
+
+            <div class="event-details">
+                <a href="#" class="register-link">Register Now</a>
+                <p class="text-sm font-semibold mt-2">Registration open: 15th - 28th October 2025</p>
+            </div>
+        </section>
+
+        <!-- Speakers Section -->
+        <section id="speakers" class="content-section">
+            <h2 class="text-3xl font-bold text-center mb-8">Featured Speakers</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Speaker Card 1: Sakshi Soni -->
+                <div class="bg-white p-6 rounded-lg shadow-xl text-center border border-lime-200 transition-all duration-300 transform hover:scale-105">
+                    <div class="w-32 h-32 rounded-full mx-auto mb-4">
+                        <img src="https://media.licdn.com/dms/image/v2/D4D03AQHK1QlB2YcC8Q/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1685167570052?e=2147483647&v=beta&t=V_0oDqVh7jMcArhxYEwlj291O1zozmEhsYN-GXFyshs" alt="Sakshi Soni" class="w-full h-full rounded-full object-cover">
+                    </div>
+                    <h3 class="text-xl font-bold text-lime-800">Sakshi Soni</h3>
+                    <p class="text-sm text-lime-600 font-semibold mb-2">Consultant at BCG</p>
+                    <p class="text-xs text-lime-700 font-medium bg-lime-100 rounded-full px-3 py-1 inline-block">IIM Ahmedabad Alumni</p>
+                    <p class="mt-4 text-sm text-gray-700">We are thrilled to welcome Ms. Sakshi Soni for an exclusive online session. Drawing from her experience at Boston Consulting Group, she will share invaluable insights on how to navigate the complexities of modern business strategy.</p>
+                </div>
+                <!-- Speaker Card 2: Sheersh Shikar -->
+                <div class="bg-white p-6 rounded-lg shadow-xl text-center border border-green-200 transition-all duration-300 transform hover:scale-105">
+                    <div class="w-32 h-32 rounded-full mx-auto mb-4">
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQh_r0HavhQAGcDb8cxlp9of6TfHTnJHXRUjfjoV-A55kGjPMf7W2A-L2KBU7ezY0Xpyu8&usqp=CAU" alt="Sheersh Shikar" class="w-full h-full rounded-full object-cover">
+                    </div>
+                    <h3 class="text-xl font-bold text-green-800">Sheersh Shikar</h3>
+                    <p class="text-sm text-green-600 font-semibold mb-2">Strategy Consultant at EY Parthenon</p>
+                    <p class="mt-4 text-sm text-gray-700">An architect of business strategy, we are proud to present Sheersh Shikar in an exclusive online session. From his role as a Strategy Consultant at EY Parthenon, Mr. Sheersh Shikar will share the practical insights needed to master strategic frameworks and sharpen your competitive edge, giving you the blueprint for success.</p>
+                </div>
+                <!-- Speaker Card 3: Aswini Bajaj -->
+                <div class="bg-white p-6 rounded-lg shadow-xl text-center border border-lime-200 transition-all duration-300 transform hover:scale-105">
+                    <div class="w-32 h-32 rounded-full mx-auto mb-4">
+                        <img src="https://in.bmscdn.com/artist/aswini-bajaj-1088016-1727769896.jpg" alt="Aswini Bajaj" class="w-full h-full rounded-full object-cover">
+                    </div>
+                    <h3 class="text-xl font-bold text-lime-800">Aswini Bajaj</h3>
+                    <p class="text-sm text-lime-600 font-semibold mb-2">Renowned CFA & FRM Teacher</p>
+                    <p class="mt-4 text-sm text-gray-700">A legend in the world of finance, we are honored to host Aswini Bajaj for an exclusive offline session. As a renowned CFA and FRM teacher, Mr. Aswini Bajaj will demystify the intricacies of financial modeling and investment strategies, equipping you with the expertise to chart your course in the high-stakes world of finance.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faqs" class="content-section">
+            <h2 class="text-3xl font-bold text-center mb-8">Frequently Asked Questions</h2>
+            <div class="space-y-4 max-w-2xl mx-auto text-left">
+                <div class="bg-gray-100 p-4 rounded-lg shadow-sm">
+                    <h3 class="font-semibold text-lg">Q: How do I register for the event?</h3>
+                    <p class="text-gray-700 mt-2">A: Registration is now open from 15th - 28th October 2025 and will be available via Google Forms from the link above.</p>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg shadow-sm">
+                    <h3 class="font-semibold text-lg">Q: Is there a fee to participate?</h3>
+                    <p class="text-gray-700 mt-2">A: No, there is no fee to register and participate in THE AXIS.</p>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg shadow-sm">
+                    <h3 class="font-semibold text-lg">Q: Is this a virtual or in-person event?</h3>
+                    <p class="text-gray-700 mt-2">A: The event has both online and offline rounds. The initial rounds are virtual, with the final rounds being in-person.</p>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg shadow-sm">
+                    <h3 class="font-semibold text-lg">Q: What is the required team size for the competition?</h3>
+                    <p class="text-gray-700 mt-2">A: Teams must consist of two members.</p>
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg shadow-sm">
+                    <h3 class="font-semibold text-lg">Q: What are the prizes for the winners?</h3>
+                    <p class="text-gray-700 mt-2">A: Winners receive prestigious trophies, official certificates, and exclusive gifts from our sponsors.</p>
+                </div>
+                 <div class="bg-gray-100 p-4 rounded-lg shadow-sm">
+                    <h3 class="font-semibold text-lg">Q: Will there be networking opportunities with the speakers?</h3>
+                    <p class="text-gray-700 mt-2">A: Yes, there will be a dedicated networking session with speakers and industry professionals.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <div class="footer-container">
+        <div class="footer-links">
+            <a href="https://www.instagram.com/xaviersconsultingclub?igsh=MWFwazdjM2RocWd3YQ==">Instagram</a> | 
+            <a href="https://www.linkedin.com/company/xaviers-consulting-club/">LinkedIn</a> | 
+            <a href="https://share.google/U3KXBU5vcr2n039mB">Website</a> | 
+            <a href="mailto:publicrelations.xcc@gmail.com">Email</a>
+        </div>
+    </div>
+
+    <script>
+        const ring1 = document.getElementById('ring1');
+        const ring2 = document.getElementById('ring2');
+        const ring3 = document.getElementById('ring3');
+        const ring4 = document.getElementById('ring4');
+        const ring5 = document.getElementById('ring5');
+        const arrow1 = document.getElementById('arrow1');
+        const arrow2 = document.getElementById('arrow2');
+        const arrow3 = document.getElementById('arrow3');
+        const arrow4 = document.getElementById('arrow4');
+        const arrow5 = document.getElementById('arrow5');
+
+        let rotationSpeed1 = 0.5;
+        let rotationSpeed2 = 0.8;
+        let rotationSpeed3 = 0.6;
+        let rotationSpeed4 = 0.4;
+        let rotationSpeed5 = 0.7;
+
+        let angle1 = 0;
+        let angle2 = 0;
+        let angle3 = 0;
+        let angle4 = 0;
+        let angle5 = 0;
+
+        function animate() {
+            angle1 += rotationSpeed1;
+            angle2 += rotationSpeed2;
+            angle3 += rotationSpeed3;
+            angle4 += rotationSpeed4;
+            angle5 += rotationSpeed5;
+
+            ring1.style.transform = `rotateY(${angle1}deg) rotateZ(${angle1 * 0.2}deg)`;
+            arrow1.style.transform = `rotateY(${angle1}deg) rotateZ(${angle1 * 0.2}deg)`;
+            ring2.style.transform = `rotateX(${angle2}deg) rotateY(${angle2 * 0.3}deg)`;
+            arrow2.style.transform = `rotateX(${angle2}deg) rotateY(${angle2 * 0.3}deg)`;
+            ring3.style.transform = `rotateX(${angle3}deg) rotateZ(${angle3 * 0.5}deg) rotateY(60deg)`;
+            arrow3.style.transform = `rotateX(${angle3}deg) rotateZ(${angle3 * 0.5}deg) rotateY(60deg)`;
+            ring4.style.transform = `rotateY(${angle4}deg) rotateX(${angle4 * 0.4}deg)`;
+            arrow4.style.transform = `rotateY(${angle4}deg) rotateX(${angle4 * 0.4}deg)`;
+            ring5.style.transform = `rotateZ(${angle5}deg) rotateX(${angle5 * 0.3}deg) rotateY(120deg)`;
+            arrow5.style.transform = `rotateZ(${angle5}deg) rotateX(${angle5 * 0.3}deg) rotateY(120deg)`;
+            
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+
+        // JavaScript for the side-pop up
+        const menuIcon = document.getElementById('menu-icon');
+        const sidePopup = document.getElementById('side-popup');
+        const closeBtn = document.getElementById('close-btn');
+        const contentSections = document.querySelectorAll('.content-section');
+        const sideLinks = document.querySelectorAll('.side-popup-link');
+
+        function showContent(contentId) {
+            contentSections.forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(contentId).classList.add('active');
+        }
+
+        menuIcon.addEventListener('click', () => {
+            sidePopup.classList.add('active');
+        });
+
+        closeBtn.addEventListener('click', () => {
+            sidePopup.classList.remove('active');
+        });
+
+        sideLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const contentId = e.target.dataset.content;
+                showContent(contentId);
+                sidePopup.classList.remove('active');
+            });
+        });
+
+        // Initially show the home section
+        showContent('home');
+    </script>
+</body>
+</html>
